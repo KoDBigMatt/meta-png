@@ -29,4 +29,20 @@ export function addMetadataFromBase64DataURI(dataURI: string, key: string, value
  *                               not be found.
 */
 export function getMetadata(PNGUint8Array: Uint8Array, key: string): string | undefined;
+/**
+ * Retrieves all tEXt chunks of a PNG file.
+ *
+ * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
+ * @returns {array} - Array of strings of all tEXt chunks.
+*/
+export function getAllTextMetadata(PNGUint8Array: Uint8Array): any[];
+/**
+ * Retrieves all metadata chunks of a PNG file.
+ *
+ * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
+ * @returns {array} - Array of strings of all tEXt chunks.
+*/
+export function getAllMetadata(PNGUint8Array: Uint8Array): any[];
+export function removeAllTextMetadata(PNGUint8Array: any): Buffer;
+export function removeTextMetadata(PNGUint8Array: any, key: any): Buffer;
 //# sourceMappingURL=main.d.ts.map

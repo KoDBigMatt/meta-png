@@ -131,7 +131,8 @@ function crc(data) {
  * @param {string} value - Value of the metadata to be set.
  * @returns {Uint8Array} - Array containing bytes of a PNG file with metadata.
 */
-export function addMetadata(PNGUint8Array, key, value) {
+// export function addMetadata(PNGUint8Array, key, value) {
+function addMetadata(PNGUint8Array, key, value) {
   if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
@@ -168,8 +169,9 @@ export function addMetadata(PNGUint8Array, key, value) {
  * @param {string} value - Value of the metadata to be set.
  * @returns {string} - Data URL with a base64 encoded PNG file with metadata.
 */
-export function addMetadataFromBase64DataURI(dataURI, key, value) {
-  const prefix = 'data:image/png;base64,';
+// export function addMetadataFromBase64DataURI(dataURI, key, value) {
+function addMetadataFromBase64DataURI(dataURI, key, value) {
+    const prefix = 'data:image/png;base64,';
   if (typeof dataURI !== 'string' || dataURI.substring(0, prefix.length) !== prefix) {
     throw new TypeError('Invalid PNG as Base64 Data URI');
   }
@@ -191,8 +193,9 @@ export function addMetadataFromBase64DataURI(dataURI, key, value) {
  * @returns {string|undefined} - A string containing the extracted value or undefined if it could
  *                               not be found.
 */
-export function getMetadata(PNGUint8Array, key) {
-  if (!isPNG(PNGUint8Array)) {
+// export function getMetadata(PNGUint8Array, key) {
+function getMetadata(PNGUint8Array, key) {
+    if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
 
@@ -207,3 +210,149 @@ export function getMetadata(PNGUint8Array, key) {
   }
   return undefined;
 }
+
+/**
+ * Retrieves all tEXt chunks of a PNG file.
+ *
+ * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
+ * @returns {array} - Array of strings of all tEXt chunks.
+*/
+// export function getAllTextMetadata(PNGUint8Array) {
+function getAllTextMetadata(PNGUint8Array) {
+    if (!isPNG(PNGUint8Array)) {
+    throw new TypeError('Invalid PNG');
+  }
+
+  const view = getDataView(PNGUint8Array);
+  let offset = 8;
+  let data = [];
+  while (offset < view.byteLength) {
+    // Get the next chunk to process
+    const chunkLength = view.getUint32(offset);
+    const dataView = dataViewToString(view, offset + 4, 4 + chunkLength);
+
+    // Just get the tEXt chunks
+    if(dataView.substring(0, 4) === 'tEXt') {
+      // Cut off the 'tEXt' section
+      data.push(dataView.substring(4));
+    }
+
+    // skip 4 bytes of chunkLength, 4 of chunkType, 4 of CRC
+    offset += chunkLength + 12; 
+  }
+  return data;
+}
+
+/**
+ * Retrieves all metadata chunks of a PNG file.
+ *
+ * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
+ * @returns {array} - Array of strings of all tEXt chunks.
+*/
+// export function getAllMetadata(PNGUint8Array) {
+function getAllMetadata(PNGUint8Array) {
+    if (!isPNG(PNGUint8Array)) {
+    throw new TypeError('Invalid PNG');
+  }
+
+  const view = getDataView(PNGUint8Array);
+  let offset = 8;
+  let data = [];
+  while (offset < view.byteLength) {
+    // Get the next chunk to process
+    const chunkLength = view.getUint32(offset);
+    const dataView = dataViewToString(view, offset + 4, 4 + chunkLength);
+    data.push(dataView);
+
+    // skip 4 bytes of chunkLength, 4 of chunkType, 4 of CRC
+    offset += chunkLength + 12; 
+  }
+  return data;
+}
+
+// TODO FIXME!!
+// export function removeAllTextMetadata(PNGUint8Array) {
+function removeAllTextMetadata(PNGUint8Array) {
+    if (!isPNG(PNGUint8Array)) {
+    throw new TypeError('Invalid PNG');
+  }
+  
+  // Get necessary data from original PNG to process
+  const view = getDataView(PNGUint8Array);
+  let offset = 8;
+
+  // Get view and array of all text metadata
+  const textMetadata = getAllTextMetadata(PNGUint8Array);
+
+  // Calculate the number of bytes to remove
+  let totalBytesToRemove = 0;
+  for(let i = 0; i < textMetadata.length; i++) {
+    // There 12 additional bytes with 'tEXt' (4), chunk length (4), and CRC (4)
+    totalBytesToRemove += textMetadata[i].length + 12;
+  }
+
+  // Create a new buffer of the expected size
+  let newPNGUint8Array = Buffer.alloc(PNGUint8Array.length - totalBytesToRemove);
+
+  // Copy over the bytes that are not part of the text metadata
+  for(let i = 0, j = 0; i < PNGUint8Array.length;) {
+    // If it's part of the first 8 bytes, it's the PNG header and we need it
+    if(i < 8) {
+      newPNGUint8Array[j++] = PNGUint8Array[i++];
+    } else {
+      // Get the chunk and check if it is a text chunk
+      // If it is a text chunk, skip it, otherwise copy it over
+
+      // Get the next chunk to process
+      const chunkLength = view.getUint32(i);
+      const dataView = dataViewToString(view, i + 4, 4 + chunkLength);
+
+      // If dataView contains a text chunk, skip it
+      if(dataView.substring(0, 4) === 'tEXt') {
+        // Chunk format
+        // (4) Length
+        // (4) Type
+        // (n) Data
+        // (4) CRC
+        // skip 4 bytes of chunkLength, 4 of chunkType, 4 of CRC
+        i += chunkLength + 12; 
+      } else {
+        // Copy over the chunk
+        for(let k = 0; k < chunkLength + 12; k++) {
+          newPNGUint8Array[j++] = PNGUint8Array[i++];
+        }
+      }
+    }
+  }
+
+  return newPNGUint8Array;
+}
+
+// TODO FIXME!!
+// export function removeTextMetadata(PNGUint8Array, key) {
+function removeTextMetadata(PNGUint8Array, key) {
+  if (!isPNG(PNGUint8Array)) {
+    throw new TypeError('Invalid PNG');
+  }
+
+  const view = getDataView(PNGUint8Array);
+  // view.replace('tEXt' + key, '');
+
+  return Buffer.from(view.buffer);
+}
+
+function getKey(chunk) {
+  return chunk.split('\0')[0];
+}
+
+
+// TODO FIXME!! Revert all export function calls and remove this
+module.exports = {
+  addMetadata,
+  addMetadataFromBase64DataURI,
+  getMetadata,
+  getAllTextMetadata,
+  getAllMetadata,
+  removeAllTextMetadata,
+  removeTextMetadata
+};
