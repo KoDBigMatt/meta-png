@@ -131,8 +131,7 @@ function crc(data) {
  * @param {string} value - Value of the metadata to be set.
  * @returns {Uint8Array} - Array containing bytes of a PNG file with metadata.
 */
-// export function addMetadata(PNGUint8Array, key, value) {
-function addMetadata(PNGUint8Array, key, value) {
+export function addMetadata(PNGUint8Array, key, value) {
   if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
@@ -169,9 +168,8 @@ function addMetadata(PNGUint8Array, key, value) {
  * @param {string} value - Value of the metadata to be set.
  * @returns {string} - Data URL with a base64 encoded PNG file with metadata.
 */
-// export function addMetadataFromBase64DataURI(dataURI, key, value) {
-function addMetadataFromBase64DataURI(dataURI, key, value) {
-    const prefix = 'data:image/png;base64,';
+export function addMetadataFromBase64DataURI(dataURI, key, value) {
+  const prefix = 'data:image/png;base64,';
   if (typeof dataURI !== 'string' || dataURI.substring(0, prefix.length) !== prefix) {
     throw new TypeError('Invalid PNG as Base64 Data URI');
   }
@@ -193,9 +191,8 @@ function addMetadataFromBase64DataURI(dataURI, key, value) {
  * @returns {string|undefined} - A string containing the extracted value or undefined if it could
  *                               not be found.
 */
-// export function getMetadata(PNGUint8Array, key) {
-function getMetadata(PNGUint8Array, key) {
-    if (!isPNG(PNGUint8Array)) {
+export function getMetadata(PNGUint8Array, key) {
+  if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
 
@@ -217,9 +214,8 @@ function getMetadata(PNGUint8Array, key) {
  * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
  * @returns {array} - Array of strings of all tEXt chunks.
 */
-// export function getAllTextMetadata(PNGUint8Array) {
-function getAllTextMetadata(PNGUint8Array) {
-    if (!isPNG(PNGUint8Array)) {
+export function getAllTextMetadata(PNGUint8Array) {
+  if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
 
@@ -249,9 +245,8 @@ function getAllTextMetadata(PNGUint8Array) {
  * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
  * @returns {array} - Array of strings of all tEXt chunks.
 */
-// export function getAllMetadata(PNGUint8Array) {
-function getAllMetadata(PNGUint8Array) {
-    if (!isPNG(PNGUint8Array)) {
+export function getAllMetadata(PNGUint8Array) {
+  if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
 
@@ -271,9 +266,8 @@ function getAllMetadata(PNGUint8Array) {
 }
 
 // TODO FIXME!!
-// export function removeAllTextMetadata(PNGUint8Array) {
-function removeAllTextMetadata(PNGUint8Array) {
-    if (!isPNG(PNGUint8Array)) {
+export function removeAllTextMetadata(PNGUint8Array) {
+  if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
   
@@ -329,8 +323,7 @@ function removeAllTextMetadata(PNGUint8Array) {
 }
 
 // TODO FIXME!!
-// export function removeTextMetadata(PNGUint8Array, key) {
-function removeTextMetadata(PNGUint8Array, key) {
+export function removeTextMetadata(PNGUint8Array, key) {
   if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
@@ -344,15 +337,3 @@ function removeTextMetadata(PNGUint8Array, key) {
 function getKey(chunk) {
   return chunk.split('\0')[0];
 }
-
-
-// TODO FIXME!! Revert all export function calls and remove this
-module.exports = {
-  addMetadata,
-  addMetadataFromBase64DataURI,
-  getMetadata,
-  getAllTextMetadata,
-  getAllMetadata,
-  removeAllTextMetadata,
-  removeTextMetadata
-};
