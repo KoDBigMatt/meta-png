@@ -200,7 +200,9 @@ export function getMetadata(PNGUint8Array, key) {
   let offset = 8;
   while (offset < view.byteLength) {
     const chunkLength = view.getUint32(offset);
-    if (dataViewToString(view, offset + 4, 4 + key.length) === `tEXt${key}`) {
+    // The key must be followed by its null separator, so 'Data' doesn't match 'DataX'
+    if (dataViewToString(view, offset + 4, 4) === 'tEXt'
+      && hasKey(view, offset + 8, chunkLength, key)) {
       return dataViewToString(view, offset + 4 + 4 + key.length + 1, chunkLength - key.length - 1);
     }
     offset += chunkLength + 12; // skip 4 bytes of chunkLength, 4 of chunkType, 4 of CRC
@@ -225,12 +227,10 @@ export function getAllTextMetadata(PNGUint8Array) {
   while (offset < view.byteLength) {
     // Get the next chunk to process
     const chunkLength = view.getUint32(offset);
-    const dataView = dataViewToString(view, offset + 4, 4 + chunkLength);
 
-    // Just get the tEXt chunks
-    if(dataView.substring(0, 4) === 'tEXt') {
-      // Cut off the 'tEXt' section
-      data.push(dataView.substring(4));
+    // Just get the tEXt chunks (only read the type of the others, image data can be large)
+    if(dataViewToString(view, offset + 4, 4) === 'tEXt') {
+      data.push(dataViewToString(view, offset + 8, chunkLength));
     }
 
     // skip 4 bytes of chunkLength, 4 of chunkType, 4 of CRC
@@ -265,75 +265,85 @@ export function getAllMetadata(PNGUint8Array) {
   return data;
 }
 
-// TODO FIXME!!
-export function removeAllTextMetadata(PNGUint8Array) {
+/**
+ * Returns a copy of a PNG file without the chunks the filter selects.
+ * Chunk format: (4) data length, (4) type, (n) data, (4) CRC
+ *
+ * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
+ * @param {function} shouldRemove - Called with (type, view, dataOffset, dataLength) for each
+ *                                  chunk, returns true to drop the chunk.
+ * @returns {Uint8Array} - Array containing bytes of the PNG file without those chunks.
+*/
+function removeChunks(PNGUint8Array, shouldRemove) {
   if (!isPNG(PNGUint8Array)) {
     throw new TypeError('Invalid PNG');
   }
-  
-  // Get necessary data from original PNG to process
+
+  // Keep the 8 byte signature, then every chunk the filter doesn't drop
   const view = getDataView(PNGUint8Array);
+  const kept = [PNGUint8Array.subarray(0, 8)];
   let offset = 8;
-
-  // Get view and array of all text metadata
-  const textMetadata = getAllTextMetadata(PNGUint8Array);
-
-  // Calculate the number of bytes to remove
-  let totalBytesToRemove = 0;
-  for(let i = 0; i < textMetadata.length; i++) {
-    // There 12 additional bytes with 'tEXt' (4), chunk length (4), and CRC (4)
-    totalBytesToRemove += textMetadata[i].length + 12;
-  }
-
-  // Create a new buffer of the expected size
-  let newPNGUint8Array = Buffer.alloc(PNGUint8Array.length - totalBytesToRemove);
-
-  // Copy over the bytes that are not part of the text metadata
-  for(let i = 0, j = 0; i < PNGUint8Array.length;) {
-    // If it's part of the first 8 bytes, it's the PNG header and we need it
-    if(i < 8) {
-      newPNGUint8Array[j++] = PNGUint8Array[i++];
-    } else {
-      // Get the chunk and check if it is a text chunk
-      // If it is a text chunk, skip it, otherwise copy it over
-
-      // Get the next chunk to process
-      const chunkLength = view.getUint32(i);
-      const dataView = dataViewToString(view, i + 4, 4 + chunkLength);
-
-      // If dataView contains a text chunk, skip it
-      if(dataView.substring(0, 4) === 'tEXt') {
-        // Chunk format
-        // (4) Length
-        // (4) Type
-        // (n) Data
-        // (4) CRC
-        // skip 4 bytes of chunkLength, 4 of chunkType, 4 of CRC
-        i += chunkLength + 12; 
-      } else {
-        // Copy over the chunk
-        for(let k = 0; k < chunkLength + 12; k++) {
-          newPNGUint8Array[j++] = PNGUint8Array[i++];
-        }
-      }
+  while (offset < view.byteLength) {
+    const chunkLength = view.getUint32(offset);
+    const type = dataViewToString(view, offset + 4, 4);
+    const chunkEnd = offset + chunkLength + 12;
+    if (!shouldRemove(type, view, offset + 8, chunkLength)) {
+      kept.push(PNGUint8Array.subarray(offset, chunkEnd));
     }
+    offset = chunkEnd;
   }
-
-  return newPNGUint8Array;
+  return concatArrays(kept);
 }
 
-// TODO FIXME!!
+/**
+ * Returns if a chunk's data starts with the given tEXt key (the key is followed by a null byte).
+ *
+ * @param {DataView} view - View on the PNG file.
+ * @param {number} dataOffset - Offset of the chunk data.
+ * @param {number} dataLength - Length of the chunk data.
+ * @param {string} key - Key to look for.
+ * @returns {boolean} - true if the chunk holds that key.
+*/
+function hasKey(view, dataOffset, dataLength, key) {
+  return (dataLength > key.length)
+    && (dataViewToString(view, dataOffset, key.length) === key)
+    && (view.getUint8(dataOffset + key.length) === 0);
+}
+
+/**
+ * Removes every tEXt chunk from a PNG file.
+ *
+ * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
+ * @returns {Uint8Array} - Array containing bytes of the PNG file without tEXt chunks.
+*/
+export function removeAllTextMetadata(PNGUint8Array) {
+  return removeChunks(PNGUint8Array, (type) => type === 'tEXt');
+}
+
+/**
+ * Removes the tEXt chunks holding the given key from a PNG file.
+ *
+ * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
+ * @param {string} key - Key (between 1 and 79 characters) of the metadata to remove.
+ * @returns {Uint8Array} - Array containing bytes of the PNG file without that key.
+*/
 export function removeTextMetadata(PNGUint8Array, key) {
-  if (!isPNG(PNGUint8Array)) {
-    throw new TypeError('Invalid PNG');
+  if (typeof key !== 'string' || key.length < 1 || key.length > 79) {
+    throw new TypeError('Invalid length for key');
   }
-
-  const view = getDataView(PNGUint8Array);
-  // view.replace('tEXt' + key, '');
-
-  return Buffer.from(view.buffer);
+  return removeChunks(PNGUint8Array, (type, view, dataOffset, dataLength) => (
+    type === 'tEXt' && hasKey(view, dataOffset, dataLength, key)
+  ));
 }
 
-function getKey(chunk) {
-  return chunk.split('\0')[0];
+/**
+ * Replaces any tEXt chunks holding the given key with a single one holding the new value.
+ *
+ * @param {Uint8Array} PNGUint8Array - Array containing bytes of a PNG file.
+ * @param {string} key - Key (between 1 and 79 characters) used to identify the metadata.
+ * @param {string} value - Value of the metadata to be set.
+ * @returns {Uint8Array} - Array containing bytes of a PNG file with the metadata set.
+*/
+export function setMetadata(PNGUint8Array, key, value) {
+  return addMetadata(removeTextMetadata(PNGUint8Array, key), key, value);
 }

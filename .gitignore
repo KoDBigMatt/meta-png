@@ -82,7 +82,8 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# dist is committed on the tgc-extension branch so installing from git needs no build step
+# dist
 
 # Gatsby files
 .cache/

@@ -43,6 +43,10 @@ export function getAllTextMetadata(PNGUint8Array: Uint8Array): any[];
  * @returns {array} - Array of strings of all tEXt chunks.
 */
 export function getAllMetadata(PNGUint8Array: Uint8Array): any[];
-export function removeAllTextMetadata(PNGUint8Array: any): Buffer;
-export function removeTextMetadata(PNGUint8Array: any, key: any): Buffer;
+/** Removes every tEXt chunk from a PNG file. */
+export function removeAllTextMetadata(PNGUint8Array: Uint8Array): Uint8Array;
+/** Removes the tEXt chunks holding the given key from a PNG file. */
+export function removeTextMetadata(PNGUint8Array: Uint8Array, key: string): Uint8Array;
+/** Replaces any tEXt chunks holding the given key with a single one holding the new value. */
+export function setMetadata(PNGUint8Array: Uint8Array, key: string, value: string): Uint8Array;
 //# sourceMappingURL=main.d.ts.map
